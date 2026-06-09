@@ -1,0 +1,9 @@
+{
+  "name": "Peteye - Pet Care Platform",
+  "description": "A comprehensive pet care management platform featuring clinic bookings, health tracking, live monitoring, and community connection.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

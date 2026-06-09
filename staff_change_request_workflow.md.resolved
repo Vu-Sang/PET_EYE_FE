@@ -1,0 +1,72 @@
+# Tài liệu Luồng Xử Lý "Yêu Cầu Đổi Nhân Viên" (Staff Change Request)
+
+Tài liệu này tổng hợp toàn bộ luồng xử lý, các lỗi đã fix và các tính năng đã tối ưu cho tính năng **Yêu cầu đổi nhân viên** mà chúng ta đã cùng nhau thực hiện.
+
+---
+
+## 1. Sơ đồ luồng hoạt động (Workflow Diagram)
+
+Dưới đây là sơ đồ chuỗi hành động từ lúc đặt lịch cho đến khi hoàn tất việc đổi nhân viên:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Khách hàng (Customer)
+    participant B as Hệ thống (Backend)
+    actor S as Chủ Shop (Shop Owner)
+
+    C->>B: Đặt lịch (Chọn "Bất kỳ nhân viên")
+    Note over B: Tự động tìm & gán nhân viên<br/>(Đã gỡ bỏ check AUTO mode)
+    B-->>C: Trả về đơn hàng thành công
+    
+    Note over S: Shop xem danh sách đơn hàng
+    S->>B: Tạo yêu cầu đổi nhân viên (Lý do bận/không chuyên môn)
+    B-->>C: Lưu yêu cầu (Trạng thái PENDING)
+    
+    Note over C: Khách hàng vào Lịch sử đặt lịch
+    C->>B: Gọi API lấy thông tin đổi nhân viên
+    Note over B: Trả về DTO sạch (Đã fix lỗi đệ quy JSON)
+    C->>C: Hiển thị khung thông báo Premium
+    
+    alt Đồng ý (ACCEPTED)
+        C->>B: Bấm "Đồng ý"
+        B->>B: Cập nhật nhân viên mới vào Booking
+        B-->>S: Gửi thông báo: "Khách hàng đã đồng ý..."
+    else Từ chối (REJECTED)
+        C->>B: Bấm "Từ chối"
+        B->>B: Giữ nguyên nhân viên cũ
+        B-->>S: Gửi thông báo: "Khách hàng từ chối..."
+    end
+```
+
+---
+
+## 2. Các vấn đề đã giải quyết & Tính năng đã nâng cấp
+
+### 2.1. Sửa lỗi hiển thị (Backend & Frontend)
+- **Vấn đề**: API trả về dữ liệu nhưng Frontend không render được khung màu vàng.
+- **Nguyên nhân**: Lỗi vòng lặp vô hạn (Infinite Recursion) của Jackson khi biến Entity thành JSON, làm hỏng chuỗi JSON trả về.
+- **Giải pháp**: Tạo DTO `StaffChangeRequestResponse` để bóc tách dữ liệu sạch, giúp Frontend đọc mượt mà.
+
+### 2.2. Nâng cấp Giao diện (UI/UX)
+- Chuyển đổi khung thông báo màu vàng đơn điệu thành một **Card Premium** với:
+  - Hiệu ứng Gradient mờ kính (`backdrop-blur`).
+  - Icon `UserPlus` và Badge `Chờ duyệt` trực quan.
+  - Khung ghi chú lý do riêng biệt, chữ in nghiêng thẩm mỹ.
+  - Nút bấm bo góc, có icon và hiệu ứng hover sống động.
+
+### 2.3. Tự động phân công nhân viên
+- **Yêu cầu**: Khi chọn "Bất kỳ nhân viên", hệ thống phải tự gán người.
+- **Giải pháp**: Gỡ bỏ điều kiện chỉ chạy ở chế độ `AUTO`. Giờ đây, cứ không chọn nhân viên là hệ thống tự quét người rảnh (hoặc gán ngẫu nhiên nếu bận hết) để đảm bảo đơn luôn có người phụ trách.
+
+### 2.4. Hệ thống thông báo (Notifications)
+- Đã thêm luồng tạo thông báo tự động gửi tới Shop Owner ngay khi khách hàng bấm **Đồng ý** hoặc **Từ chối** để Shop nắm bắt tình hình tức thì.
+
+### 2.5. Chuẩn hóa luồng Shop & Thanh toán
+- **Tháo bỏ Bypass**: Gỡ bỏ các đoạn code bỏ qua thanh toán cọc 10% (PayOS) để đưa hệ thống về chuẩn production (phải trả tiền thật).
+- **Rút gọn thao tác Shop**: Xóa bỏ các nút "Bắt đầu" và "Hoàn thành" bên phía Shop (vì Shop chỉ có nhiệm vụ duyệt đơn).
+- **Fix thiếu giá tiền**: Đã bổ sung trường `servicePrice` vào API để hiển thị đúng giá dịch vụ trong popup chi tiết thay vì `0 đ`.
+
+---
+> [!NOTE]
+> Tài liệu này được tạo tự động để ghi nhớ luồng công việc. Bạn có thể lưu trữ hoặc dùng làm tài liệu bàn giao sau này.
